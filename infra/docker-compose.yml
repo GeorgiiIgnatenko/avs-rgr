@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    restart: always
+    command:
+      - "--log.level=INFO"
+      # Определяем точку входа для HTTPS
+      - "--entryPoints.websecure.address=:443"
+
+      # Включаем поддержку Docker в Traefik
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+
+      # Включаем (опционально) админку Traefik на :8080 (можно убрать, если не требуется)
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+
+      # Настройка Let's Encrypt (автоматическая выдача сертификатов)
+      # При желании можно использовать свой сертификат/кей в tls.crt/tls.key
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=you@example.com"  # ваша почта для LetsEncrypt
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+
+    ports:
+      - "443:443"     # HTTPS
+      - "8080:8080"   # Если хотите иметь доступ к dashboard Traefik
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # В этом файле Traefik будет хранить информацию о выданных сертификатах
+      - acme:/letsencrypt
+
+    networks:
+      - traefik-net
+
+    labels:
+      # Можете включить/выключить, если хотите видеть сам Traefik по какому-нибудь адресу
+      # - "traefik.enable=true"
+      # - "traefik.http.routers.traefik.rule=Host(`traefik.example.com`)"
+      # - "traefik.http.routers.traefik.entrypoints=websecure"
+      # - "traefik.http.routers.traefik.tls=true"
+      # - "traefik.http.routers.traefik.tls.certresolver=myresolver"
+      # - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+      # Если надо basic-auth к dashboard, здесь можно добавить middleware и т.д.
+      # См. документацию Traefik
+      - "traefik.enable=false"
+
+
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    restart: always
+    user: root  # Позволит ставить пакеты внутри контейнера, использовать docker-cli и т.д.
+    networks:
+      - traefik-net
+    # Пробрасываем Docker Socket, чтобы Jenkins мог управлять Docker-контейнерами напрямую
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - "traefik.enable=true"
+      # Правило маршрутизации. Подставьте свой домен: jenkins.example.com
+      - "traefik.http.routers.jenkins.rule=Host(`jenkins.example.com`)"
+      # Говорим Traefik, куда внутри контейнера проксировать (стандартный порт Jenkins — 8080)
+      - "traefik.http.services.jenkins.loadbalancer.server.port=8080"
+      # Шифруем TLS (HTTPS)
+      - "traefik.http.routers.jenkins.entrypoints=websecure"
+      - "traefik.http.routers.jenkins.tls=true"
+      # Указываем, какой resolver будем использовать для выдачи сертификата
+      - "traefik.http.routers.jenkins.tls.certresolver=myresolver"
+
+    # Если нужно сразу устанавливать docker-cli внутри Jenkins-контейнера:
+    # (Можно вынести в отдельный Dockerfile на базе jenkins/jenkins:lts)
+    # environment:
+    #   - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    # command: >
+    #   /bin/bash -c "
+    #   apt-get update &&
+    #   apt-get install -y docker.io docker-compose &&
+    #   exec /usr/local/bin/jenkins.sh
+    #   "
+
+networks:
+  traefik-net:
+    external: false
+
+volumes:
+  jenkins_home:
+  acme:
