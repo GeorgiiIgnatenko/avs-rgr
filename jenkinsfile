@@ -2,15 +2,15 @@ pipeline {
     agent any   //Пайплайн выполняется на локальных и удалённых машинах
 
     environment {
-        IMAGE_NAME = 'avs'   //Имя докер-контейнера, -образа.
-        DOCKER_IMAGE = 'avs:latest'
+        IMAGE_NAME = 'avs-rgr'   //Имя докер-контейнера, -образа.
+        DOCKER_IMAGE = 'avs-rgr:latest'
         PORT = '8080' // Порт для использования контейнером
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/Flar1/CI-CD-test'  // Клонируем ветку с репозитория
+                git branch: 'master', url: 'https://github.com/GeorgiiIgnatenko/avs-rgr.git'  // Клонируем ветку с репозитория
             }
         }
 
