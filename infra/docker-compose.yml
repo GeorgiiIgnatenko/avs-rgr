@@ -4,12 +4,17 @@ services:
     command:
       - "--api.insecure=true"
       - "--providers.docker=true"
+      - "--providers.file.filename=/traefik_dynamic_conf.yml"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
     ports:
       - "80:80"      # HTTP трафик
-      - "8080:8080"  # Панель управления Traefik
+      - "443:443"    # HTTPS трафик
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik_dynamic_conf.yml:/traefik_dynamic_conf.yml"
+      - "../certs/example.localhost.pem:/certs/example.localhost.pem"
+      - "../certs/example.localhost-key.pem:/certs/example.localhost-key.pem"
     networks:
       - web
 
@@ -24,7 +29,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.jenkins.rule=PathPrefix(`/jenkins`)"
+      - "traefik.http.routers.jenkins.tls=true"
+      - "traefik.http.routers.jenkins.entrypoints=websecure"
+      - "traefik.http.routers.jenkins.rule=Host(`example.localhost`) && PathPrefix(`/jenkins`)"
       - "traefik.http.services.jenkins.loadbalancer.server.port=8080"
     networks:
       - web
@@ -35,4 +42,3 @@ volumes:
 networks:
   web:
     driver: bridge
-
