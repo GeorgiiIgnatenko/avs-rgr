@@ -16,7 +16,6 @@ services:
   jenkins:
     build: ./jenkins
     user: root
-    privileged: true
     environment:
       JAVA_OPTS: -Djenkins.install.runSetupWizard=false
       JENKINS_OPTS: --prefix=/jenkins --argumentsRealm.roles.user=admin --argumentsRealm.passwd.admin=admin --argumentsRealm.roles.admin=admin
